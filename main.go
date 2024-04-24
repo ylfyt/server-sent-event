@@ -26,6 +26,13 @@ func (me *Subs) Send(path string, data any) error {
 
 func increment(subs Subs) {
 	counter++
+	if counter >= 10 {
+		counter = 0
+		for _, sse := range subs {
+			sse.Done()
+		}
+		return
+	}
 	subs.Send("/counter", counter)
 }
 
@@ -66,7 +73,7 @@ func main() {
 			select {
 			case <-r.Context().Done():
 				return
-			case <-sse.Done():
+			case <-sse.Closed():
 				return
 			}
 		}

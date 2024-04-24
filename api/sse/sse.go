@@ -37,7 +37,11 @@ func (me *Sse) write(data []byte) error {
 	}
 	return nil
 }
-func (me *Sse) Done() <-chan struct{} {
+func (me *Sse) Done() {
+	me.notifiy <- struct{}{}
+}
+
+func (me *Sse) Closed() <-chan struct{} {
 	return me.notifiy
 }
 

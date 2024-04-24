@@ -7,7 +7,7 @@
 		Data: T;
 	};
 
-	let count: number | null = null;
+	let count: number | undefined;
 	let sse: EventSource | undefined = undefined;
 	onMount(() => {
 		start();
@@ -15,16 +15,24 @@
 
 	const start = () => {
 		sse = new EventSource("http://localhost:8080/sse");
-		sse.addEventListener("error", (e) => {
-			console.log("err", e);
-		});
+
+		sse.onerror = function (e) {
+            console.log(e);
+            
+			if (sse?.readyState === EventSource.CLOSED) {
+				console.log("Connection closed by the server");
+			} else {
+				console.log("Error occurred");
+			}
+		};
+
 		sse.addEventListener("message", (e) => {
 			try {
 				const res = JSON.parse(e.data) as SseData<number>;
 				count = res.Data;
 			} catch (error) {
 				console.error(error);
-				count = null;
+				count = undefined;
 			}
 		});
 		sse.addEventListener("open", (e) => {
@@ -34,8 +42,9 @@
 
 	const stop = () => {
 		sse?.close();
+        console.log(sse);
 		sse = undefined;
-		count = null;
+		count = undefined;
 	};
 
 	const inc = async () => {
@@ -46,7 +55,7 @@
 </script>
 
 <div>
-	<div>Count is {count}</div>
+	<div>Count is {count ?? ""}</div>
 	<br />
 	<button on:click={inc}>Inc</button>
 	<br />

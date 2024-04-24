@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SSE Client</title>
+</head>
+
+<body>
+    <div id="sse-data"></div>
+
+    <script>
+        const eventSource = new EventSource('http://localhost:8080/sse');
+
+        eventSource.onmessage = function (event) {
+            const eventData = event.data;
+            document.getElementById('sse-data').innerHTML += '<p>' + eventData + '</p>';
+        };
+
+        eventSource.onerror = function (event) {
+            if (event.readyState === EventSource.CLOSED) {
+                document.getElementById('sse-data').innerHTML += '<p>' + 'Connection was closed.' + '</p>';
+            } else {
+                document.getElementById('sse-data').innerHTML += '<p>' + `'Error occurred: ${JSON.stringify(event)}` + '</p>';
+            }
+        };
+    </script>
+</body>
+
+</html>

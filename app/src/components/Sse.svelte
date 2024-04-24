@@ -14,10 +14,12 @@
 	let result: string = "";
 	let message: string = "";
 
-	onMount(() => {});
+	onMount(() => {
+		start();
+	});
 
 	const start = () => {
-		sse = new Sse("http://localhost:8080/sse");
+		sse = new Sse("http://localhost:8080/sse?key=dsadsadsa&topic=notif");
 		sse.onData((data) => {
 			if (!data) {
 				message = "Failed to read data";

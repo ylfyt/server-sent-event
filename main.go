@@ -56,6 +56,8 @@ func main() {
 	})
 
 	r.Get("/sse", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Printf("Data: %+v\n", r.URL.Query().Get("topic"))
+
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("Connection", "keep-alive")

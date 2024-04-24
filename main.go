@@ -36,6 +36,13 @@ func increment(subs Subs) {
 	subs.Send("/counter", counter)
 }
 
+func timeHandler(subs Subs) {
+	for {
+		subs.Send("/timer", time.Now().UnixMilli())
+		time.Sleep(time.Second)
+	}
+}
+
 func main() {
 	subs := make(Subs)
 
@@ -63,7 +70,7 @@ func main() {
 
 		fmt.Println("New SSE Connection", id)
 		subs[id] = sse
-		sse.Send("/counter", counter)
+		// sse.Send("/counter", counter)
 
 		defer func() {
 			fmt.Println("Done", id)
@@ -78,6 +85,8 @@ func main() {
 			}
 		}
 	})
+
+	go timeHandler(subs)
 
 	fmt.Println("Listening on port", 8080)
 	http.ListenAndServe(":8080", r)

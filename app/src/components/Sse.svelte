@@ -1,48 +1,41 @@
 <script lang="ts">
 	import { onMount } from "svelte";
+	import { Sse, type SseState } from "../helper/sse";
 
-	type SseData<T> = {
+	type SseResponse<T> = {
 		Id: number;
 		Path: string;
 		Data: T;
 	};
 
 	let count: number | undefined;
-	let sse: EventSource | undefined = undefined;
-	onMount(() => {
-		start();
-	});
+	let sse: Sse<SseResponse<number>> | undefined = undefined;
+	let state: SseState | undefined = undefined;
+	let result: string = "";
+	let message: string = "";
+
+	onMount(() => {});
 
 	const start = () => {
-		sse = new EventSource("http://localhost:8080/sse");
-
-		sse.onerror = function (e) {
-            console.log(e);
-            
-			if (sse?.readyState === EventSource.CLOSED) {
-				console.log("Connection closed by the server");
-			} else {
-				console.log("Error occurred");
+		sse = new Sse("http://localhost:8080/sse");
+		sse.onData((data) => {
+			if (!data) {
+				message = "Failed to read data";
+				return;
 			}
-		};
-
-		sse.addEventListener("message", (e) => {
-			try {
-				const res = JSON.parse(e.data) as SseData<number>;
-				count = res.Data;
-			} catch (error) {
-				console.error(error);
-				count = undefined;
-			}
+			result = new Date(data.Data).toLocaleString();
 		});
-		sse.addEventListener("open", (e) => {
-			console.log("open", e);
+		sse.onStateChange((s) => {
+			state = s;
+		});
+		sse.onError((e) => {
+			console.log("error", e);
 		});
 	};
 
 	const stop = () => {
 		sse?.close();
-        console.log(sse);
+		console.log(sse);
 		sse = undefined;
 		count = undefined;
 	};
@@ -55,10 +48,15 @@
 </script>
 
 <div>
-	<div>Count is {count ?? ""}</div>
+	{#if state}
+		<div>
+			{state}
+		</div>
+	{/if}
+
 	<br />
-	<button on:click={inc}>Inc</button>
-	<br />
+	<div>{result}</div>
+	<div>{message}</div>
 	<br />
 	{#if !sse}
 		<button on:click={start}> Start </button>

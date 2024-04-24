@@ -2,83 +2,61 @@ package main
 
 import (
 	"fmt"
-	"io"
+	"go_sse/api/sse"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/cors"
 )
 
-type Sse struct {
-	w       io.Writer
-	id      int64
-	flusher http.Flusher
-	notifiy chan struct{}
-}
+var counter = 0
 
-func (me *Sse) Send(data []byte) error {
-	defer func() {
-		me.flusher.Flush()
-	}()
-	_, err := me.w.Write([]byte("data: "))
-	if err != nil {
-		return err
-	}
-	_, err = me.w.Write(data)
-	if err != nil {
-		return err
-	}
-	_, err = me.w.Write([]byte("\n\n"))
-	if err != nil {
-		return err
+type Subs map[int64]*sse.Sse
+
+func (me *Subs) Send(path string, data any) error {
+	for _, sse := range *me {
+		err := sse.Send("/timer", data)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
-func (me *Sse) Done() <-chan struct{} {
-	return me.notifiy
-}
 
-func timerHandler(subs map[int64]*Sse) {
-	for {
-		now := time.Now().UnixMilli()
-		for _, sse := range subs {
-			sse.Send([]byte(strconv.Itoa(int(now))))
-		}
-		time.Sleep(1 * time.Second)
-	}
+func increment(subs Subs) {
+	counter++
+	subs.Send("/counter", counter)
 }
 
 func main() {
-	subs := make(map[int64]*Sse)
+	subs := make(Subs)
 
 	r := chi.NewRouter()
 	r.Use(cors.New(cors.Options{
 		AllowedOrigins: []string{"*"},
 	}).Handler)
 
+	r.Post("/inc", func(w http.ResponseWriter, r *http.Request) {
+		increment(subs)
+	})
+
 	r.Get("/sse", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("Connection", "keep-alive")
 
-		flusher, ok := w.(http.Flusher)
-		if !ok {
-			http.Error(w, "Streaming not supported", http.StatusInternalServerError)
+		id := time.Now().UnixMilli()
+		sse, err := sse.New(w, id)
+		if err != nil {
+			fmt.Println("Failed to initiate SSE", id, err)
+			http.Error(w, "Failed to initiate SSE", http.StatusInternalServerError)
 			return
 		}
 
-		id := time.Now().UnixMilli()
-		sse := &Sse{
-			w:       w,
-			id:      id,
-			flusher: flusher,
-			notifiy: make(chan struct{}),
-		}
-		subs[id] = sse
-
 		fmt.Println("New SSE Connection", id)
+		subs[id] = sse
+		sse.Send("/counter", counter)
 
 		defer func() {
 			fmt.Println("Done", id)
@@ -93,7 +71,6 @@ func main() {
 			}
 		}
 	})
-	go timerHandler(subs)
 
 	fmt.Println("Listening on port", 8080)
 	http.ListenAndServe(":8080", r)
